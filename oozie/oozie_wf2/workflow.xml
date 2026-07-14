@@ -1,0 +1,74 @@
+<workflow-app xmlns="uri:oozie:workflow:0.4" name="drivers_ingestion">
+  <global>
+    <job-tracker>${jobTracker}</job-tracker>
+    <name-node>${nameNode}</name-node>
+  </global>
+
+  <credentials>
+    <credential name="hive-creds" type="hive2">
+      <property>
+        <name>hive2.server.principal</name>
+        <value>hive/_HOST@AU.ADALTAS.CLOUD</value>
+      </property>
+      <property>
+        <name>hive2.jdbc.url</name>
+        <value>jdbc:hive2://zoo-1.au.adaltas.cloud:2181,zoo-2.au.adaltas.cloud:2181,zoo-3.au.adaltas.cloud:2181/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2</value>
+      </property>
+    </credential>
+  </credentials>
+
+  <start to="python_word_count" />
+
+  <action name="python_word_count">
+     <map-reduce>
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        
+	<prepare>
+            <delete path="/education/spring_gr01/login/lab7-2/word-count"/>
+        </prepare>
+
+        <configuration>
+            <property>
+                <name>mapreduce.job.mapper.class</name>
+                <value>org.apache.hadoop.examples.WordCount$TokenizerMapper</value>
+            </property>
+
+            <property>
+                <name>mapred.job.reducer.class</name>
+                <value>org.apache.hadoop.examples.WordCount$IntSumReducer</value>
+            </property>
+
+            <property>
+                <name>mapreduce.input.fileinputformat.inputdir</name>
+                <value>/education/spring_gr01/resources/lab3/mapred-input</value>
+            </property>
+
+            <property>
+                <name>mapreduce.output.fileoutputformat.outputdir</name>
+                <value>/education/spring_gr01/login/lab7-2/word-count</value>
+            </property>
+        </configuration>
+    </map-reduce>
+    
+    <ok to="hive_create_action" />
+    <error to="kill_job" />
+  </action>  
+
+  <action name="hive_create_action" cred="hive_creds">
+        <hive2 xmlns="uri:oozie:hive2-action:0.2">
+            <jdbc-url>jdbc:hive2://zoo-1.au.adaltas.cloud:2181,zoo-2.au.adaltas.cloud:2181,zoo-3.au.adaltas.cloud:2181/default;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2</jdbc-url>
+            <script>scripts/create_hive_table2.hql</script>
+            <param>database=spring_gr01</param>
+            <param>hiveUsername=login</param>
+        </hive2>
+        <ok to="end"/>
+        <error to="kill_job"/>
+  </action>
+
+  <kill name="kill_job">
+    <message>Job failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+  </kill>
+
+  <end name="end" />
+</workflow-app>

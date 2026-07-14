@@ -1,0 +1,64 @@
+<workflow-app xmlns="uri:oozie:workflow:0.4" name="drivers_ingestion">
+  <global>
+    <job-tracker>${jobTracker}</job-tracker>
+    <name-node>${nameNode}</name-node>
+  </global>
+
+  <credentials>
+    <credential name="hive-creds" type="hive2">
+      <property>
+        <name>hive2.server.principal</name>
+        <value>hive/_HOST@AU.ADALTAS.CLOUD</value>
+      </property>
+      <property>
+        <name>hive2.jdbc.url</name>
+        <value>jdbc:hive2://hive-s2-1.au.adaltas.cloud:10000/default</value>
+      </property>
+    </credential>
+  </credentials>
+
+  <start to="load_action" />
+
+  <action name="load_action" cred="hive-creds">
+        <hive2 xmlns="uri:oozie:hive2-action:0.2">
+            <jdbc-url>jdbc:hive2://hive-s2-1.au.adaltas.cloud:10000/default</jdbc-url>
+            <script>scripts/load.hql</script>
+            <param>group=spring_gr01</param>
+            <param>hiveUsername=login</param>
+            <param>clusterUsername=login</param>
+	    <param>SOURCE_PATH=${inputDir}</param>
+        </hive2>
+        <ok to="hive_merge_action"/>
+        <error to="kill_job"/>
+  </action>   
+
+  <action name="hive_merge_action" cred="hive-creds">
+        <hive2 xmlns="uri:oozie:hive2-action:0.2">
+            <jdbc-url>jdbc:hive2://hive-s2-1.au.adaltas.cloud:10000/default</jdbc-url>
+            <script>scripts/merge_wordcounts.hql</script>
+            <param>group=spring_gr01</param>
+            <param>hiveUsername=login</param>
+	    <param>clusterUsername=login</param>
+        </hive2>
+	<ok to="delete_action"/>
+        <error to="kill_job"/>
+  </action>
+
+  <action name="delete_action" cred="hive-creds">
+        <hive2 xmlns="uri:oozie:hive2-action:0.2">
+            <jdbc-url>jdbc:hive2://hive-s2-1.au.adaltas.cloud:10000/default</jdbc-url>
+            <script>scripts/delete_load.hql</script>
+            <param>group=spring_gr01</param>
+            <param>hiveUsername=login</param>
+            <param>clusterUsername=login</param>
+        </hive2>
+        <ok to="end"/>
+        <error to="kill_job"/>
+  </action>
+
+  <kill name="kill_job">
+    <message>Job failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+  </kill>
+
+  <end name="end" />
+</workflow-app>

@@ -1,0 +1,29 @@
+<coordinator-app name="parquet_stream_coord" frequency="5" 
+                 start="2026-04-12T16:30Z" end="2026-04-12T23:30Z" timezone="UTC"
+                 xmlns="uri:oozie:coordinator:0.2">
+    <datasets>
+        <dataset name="input_parquet" frequency="5" 
+                 initial-instance="2026-04-12T16:30Z" timezone="UTC">
+            <uri-template>/education/spring_gr01/login/project/staged_data/${YEAR}/${MONTH}/${DAY}/${HOUR}${MINUTE}</uri-template>
+            <done-flag>_SUCCESS</done-flag>
+        </dataset>
+    </datasets>
+
+    <input-events>
+        <data-in name="input_event" dataset="input_parquet">
+            <instance>${coord:current(0)}</instance>
+        </data-in>
+    </input-events>
+
+    <action>
+        <workflow>
+            <app-path>${workflowPath}</app-path>
+            <configuration>
+                <property>
+                    <name>inputDir</name>
+                    <value>${coord:dataIn('input_event')}</value>
+                </property>
+            </configuration>
+        </workflow>
+    </action>
+</coordinator-app>

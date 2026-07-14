@@ -1,0 +1,51 @@
+<workflow-app xmlns="uri:oozie:workflow:0.4" name="drivers_ingestion">
+  <global>
+    <job-tracker>${jobTracker}</job-tracker>
+    <name-node>${nameNode}</name-node>
+  </global>
+
+  <credentials>
+    <credential name="hive-creds" type="hive2">
+      <property>
+        <name>hive2.server.principal</name>
+        <value>${hivePrincipal}</value>
+      </property>
+      <property>
+        <name>hive2.jdbc.url</name>
+        <value>${jdbcUrl}</value>
+      </property>
+    </credential>
+  </credentials>
+
+  <start to="create_csv_table" />
+
+  <action name="create_csv_table" cred="hive-creds">
+    <hive2 xmlns="uri:oozie:hive2-action:0.2">
+      <jdbc-url>${jdbcUrl}</jdbc-url>
+      <script>scripts/create_drivers_ext.hql</script>
+      <param>hiveUsername=login</param>
+      <param>clusterUsername=login</param>
+      <param>group=spring_gr01</param>
+    </hive2>
+    <ok to="insert_into_orc" />
+    <error to="kill_job" />
+  </action>
+
+  <action name="insert_into_orc" cred="hive-creds">
+    <hive2 xmlns="uri:oozie:hive2-action:0.2">
+      <jdbc-url>${jdbcUrl}</jdbc-url>
+      <script>scripts/load_drivers_orc.hql</script>
+      <param>hiveUsername=login</param>
+      <param>clusterUsername=login</param>
+      <param>group=spring_gr01</param>
+    </hive2>
+    <ok to="end" />
+    <error to="kill_job" />
+  </action>
+
+  <kill name="kill_job">
+    <message>Job failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+  </kill>
+
+  <end name="end" />
+</workflow-app>
